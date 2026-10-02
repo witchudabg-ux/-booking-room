@@ -378,7 +378,13 @@ let bookings = [];
 let dataReady = false;
 let syncError = false;
 let lastSync = null;
-let currentUser = null; // {username, password, name, isAdmin} เก็บไว้ในหน่วยความจำหน้านี้เท่านั้น (หายเมื่อรีเฟรช)
+let currentUser = null; // {username, password, name, isAdmin}
+try{
+  const savedUser = localStorage.getItem('bookingUser');
+  if(savedUser) currentUser = JSON.parse(savedUser);
+}catch(e){ console.warn('ไม่สามารถอ่านสถานะล็อกอินเดิมได้', e); }
+function saveSession(){ try{ localStorage.setItem('bookingUser', JSON.stringify(currentUser)); }catch(e){} }
+function clearSession(){ try{ localStorage.removeItem('bookingUser'); }catch(e){} }
 
 function parseTimeVal(v){
   if(typeof v==='number') return v;
@@ -458,6 +464,7 @@ async function requireEdit(){
     const result = await res.json();
     if(result && result.ok){
       currentUser = {username:cred.username, password:cred.password, name:result.name, isAdmin:!!result.isAdmin};
+      saveSession();
       showToast(`เข้าสู่ระบบสำเร็จ: ${result.name}${result.isAdmin?' (ผู้ดูแลระบบ)':''}`);
       render();
       return true;
@@ -474,6 +481,7 @@ async function toggleLock(){
   if(currentUser){
     if(await askConfirm(`ออกจากระบบ (${currentUser.name}) หรือไม่?`)){
       currentUser = null;
+      clearSession();
       showToast('ออกจากระบบแล้ว');
       render();
     }
