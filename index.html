@@ -229,9 +229,12 @@
   .booking-block .b-title{font-size:12.5px; font-weight:700; color:var(--ink); margin-top:1px;}
   .booking-block .b-who{font-size:11px; color:var(--ink-muted);}
   .booking-block .b-del{
-    position:absolute; top:4px; right:4px; background:none; border:none; color:var(--busy);
-    cursor:pointer; font-size:14px; opacity:0; transition:opacity .15s; line-height:1;
+    position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%;
+    background:#fff; border:1px solid var(--busy); color:var(--busy);
+    cursor:pointer; font-size:12px; line-height:1; display:flex; align-items:center; justify-content:center;
+    opacity:.75; transition:opacity .15s, transform .15s;
   }
+  .booking-block .b-del:hover{opacity:1; transform:scale(1.1);}
   .booking-block:hover .b-del{opacity:1;}
   .now-line{position:absolute; left:0; right:0; height:3px; background:var(--ink); z-index:3; border-radius:2px;}
   .now-line::before{
