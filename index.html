@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ระบบจองห้องประชุม</title>
+<title>ระบบจองห้องประชุม by witchuda</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
 
@@ -93,6 +93,9 @@
     font-family:'Kanit',sans-serif; font-size:32px; margin:0; font-weight:800;
     letter-spacing:-0.01em; color:var(--ink);
     text-shadow: 3px 3px 0 var(--neon-cyan);
+  }
+  .byline{
+    display:block; font-size:12.5px; color:var(--ink-muted); margin-top:6px; font-style:italic;
   }
   .clock-block{
     text-align:right; font-family:'JetBrains Mono',monospace;
@@ -359,9 +362,60 @@ function parseTimeVal(v){
   return isNaN(n) ? 0 : n;
 }
 
+let passcodeResolver = null;
+function askPasscode(){
+  return new Promise(resolve=>{
+    passcodeResolver = resolve;
+    document.getElementById('modal-root').innerHTML = `
+    <div class="overlay" onclick="if(event.target===this)resolvePasscodeModal(null)">
+      <div class="modal">
+        <h2>🔐 ระบบจองห้องประชุม by witchuda</h2>
+        <div class="sub">กรอกรหัสผ่านสำหรับผู้มีสิทธิ์จอง/ยกเลิกห้อง</div>
+        <div class="field">
+          <label>รหัสผ่าน</label>
+          <input id="f-passcode" type="password" placeholder="กรอกรหัสผ่านที่นี่">
+        </div>
+        <div class="modal-actions">
+          <button class="btn ghost" onclick="resolvePasscodeModal(null)">ยกเลิก</button>
+          <button class="btn primary" onclick="resolvePasscodeModal(document.getElementById('f-passcode').value)">ตกลง</button>
+        </div>
+      </div>
+    </div>`;
+    const inp = document.getElementById('f-passcode');
+    inp.focus();
+    inp.addEventListener('keydown', e=>{ if(e.key==='Enter') resolvePasscodeModal(inp.value); });
+  });
+}
+function resolvePasscodeModal(value){
+  document.getElementById('modal-root').innerHTML = '';
+  if(passcodeResolver){ const r = passcodeResolver; passcodeResolver = null; r(value); }
+}
+
+let confirmResolver = null;
+function askConfirm(message){
+  return new Promise(resolve=>{
+    confirmResolver = resolve;
+    document.getElementById('modal-root').innerHTML = `
+    <div class="overlay" onclick="if(event.target===this)resolveConfirmModal(false)">
+      <div class="modal">
+        <h2>ระบบจองห้องประชุม by witchuda</h2>
+        <div class="sub">${message}</div>
+        <div class="modal-actions">
+          <button class="btn ghost" onclick="resolveConfirmModal(false)">ยกเลิก</button>
+          <button class="btn primary" onclick="resolveConfirmModal(true)">ตกลง</button>
+        </div>
+      </div>
+    </div>`;
+  });
+}
+function resolveConfirmModal(value){
+  document.getElementById('modal-root').innerHTML = '';
+  if(confirmResolver){ const r = confirmResolver; confirmResolver = null; r(value); }
+}
+
 async function requireEdit(){
   if(editPasscode) return true;
-  const code = prompt('การจอง/ยกเลิกต้องใช้รหัสผ่าน กรุณากรอกรหัสผ่านสำหรับผู้มีสิทธิ์:');
+  const code = await askPasscode();
   if(!code) return false;
   showToast('กำลังตรวจสอบรหัสผ่าน...');
   try{
@@ -381,9 +435,9 @@ async function requireEdit(){
     return false;
   }
 }
-function toggleLock(){
+async function toggleLock(){
   if(editPasscode){
-    if(confirm('ล็อกโหมดแก้ไขอีกครั้ง (กลับไปเป็นดูอย่างเดียว) หรือไม่?')){
+    if(await askConfirm('ล็อกโหมดแก้ไขอีกครั้ง (กลับไปเป็นดูอย่างเดียว) หรือไม่?')){
       editPasscode = null;
       showToast('ล็อกโหมดแก้ไขแล้ว');
       render();
@@ -546,6 +600,7 @@ function renderHome(){
     <div class="brand-block">
       <div class="eyebrow">ระบบจองห้องประชุม</div>
       <h1>${titleText}</h1>
+      <span class="byline">by witchuda</span>
     </div>
     ${renderClock()}
   </div>
@@ -745,7 +800,7 @@ function toggleErr(id, isErr){
 }
 async function deleteBooking(id){
   if(!(await requireEdit())) return;
-  if(!confirm('ยกเลิกการจองนี้ใช่หรือไม่?')) return;
+  if(!(await askConfirm('ยกเลิกการจองนี้ใช่หรือไม่?'))) return;
   if(!API_URL || API_URL.includes('PASTE_YOUR')){
     showToast('ยังไม่ได้ตั้งค่า Google Sheet — ดูคำแนะนำการเชื่อมต่อ');
     return;
