@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบจองห้องประชุม</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
+
+  :root{
+    --neon-pink:#FF2E93;
+    --neon-pink-dark:#D4127A;
+    --neon-yellow:#FFE500;
+    --neon-cyan:#17E6E0;
+    --neon-lime:#B6FF3C;
+
+    --paper:#F7F6FC;
+    --surface:#FFFFFF;
+    --ink:#1B1726;
+    --ink-muted:#6B6578;
+    --ink-faint:#9D96A8;
+    --border:#ECE8F4;
+
+    --brand:var(--neon-pink);
+    --brand-dark:var(--neon-pink-dark);
+    --brand-tint:#FFE3F3;
+
+    --free:#2E8B3D;
+    --free-tint:#E7FBC9;
+    --busy:#D4127A;
+    --busy-tint:#FFE1F0;
+    --amber:#8A6D00;
+    --amber-tint:#FFF6B8;
+    --cyan-tint:#DAFBFA;
+
+    --radius:18px;
+    --shadow: 0 2px 4px rgba(27,23,38,0.05), 0 14px 32px rgba(27,23,38,0.10);
+  }
+  *{box-sizing:border-box;}
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
+  }
+  html,body{margin:0;padding:0;}
+  body{
+    min-height:100vh;
+    background:
+      linear-gradient(135deg, var(--neon-pink) 0%, var(--neon-pink) 100%),
+      linear-gradient(135deg, var(--neon-yellow) 0%, var(--neon-yellow) 100%),
+      linear-gradient(135deg, var(--neon-lime) 0%, var(--neon-lime) 100%),
+      linear-gradient(135deg, var(--neon-cyan) 0%, var(--neon-cyan) 100%);
+    background-size:50% 50%;
+    background-position: top left, top right, bottom left, bottom right;
+    background-repeat:no-repeat;
+    background-attachment:fixed;
+    color:var(--ink);
+    font-family:'Kanit',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:22px;
+  }
+
+  .browser-frame{
+    max-width:1220px; margin:0 auto; background:var(--surface);
+    border-radius:28px; box-shadow:0 30px 70px rgba(27,23,38,.35);
+    overflow:hidden;
+  }
+  .browser-topbar{
+    display:flex; align-items:center; gap:14px; padding:16px 22px;
+    border-bottom:1px solid var(--border);
+  }
+  .browser-dots{display:flex; gap:7px;}
+  .browser-dots span{width:12px; height:12px; border-radius:50%; display:block;}
+  .browser-dots .d1{background:var(--neon-pink);}
+  .browser-dots .d2{background:var(--neon-yellow);}
+  .browser-dots .d3{background:var(--neon-cyan);}
+  .browser-search{
+    flex:1; background:var(--paper); border-radius:100px; padding:8px 16px;
+    font-size:13px; color:var(--ink-muted); font-family:'JetBrains Mono',monospace;
+    max-width:360px;
+  }
+
+  #app{max-width:1180px; margin:0 auto; padding:24px 24px 72px;}
+
+  .topbar{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    margin-bottom:24px; flex-wrap:wrap; gap:16px;
+  }
+  .brand-block .eyebrow{
+    display:inline-block; font-size:13px; font-weight:700; color:var(--ink);
+    background:var(--neon-yellow); padding:5px 14px; border-radius:100px;
+    transform:rotate(-2deg); margin-bottom:10px; box-shadow:0 3px 0 rgba(27,23,38,.12);
+  }
+  .brand-block h1{
+    font-family:'Kanit',sans-serif; font-size:32px; margin:0; font-weight:800;
+    letter-spacing:-0.01em; color:var(--ink);
+    text-shadow: 3px 3px 0 var(--neon-cyan);
+  }
+  .clock-block{
+    text-align:right; font-family:'JetBrains Mono',monospace;
+  }
+  .clock-block .time{font-size:26px; font-weight:700; color:var(--brand); line-height:1;}
+  .clock-block .date{font-size:13px; color:var(--ink-muted); margin-top:4px;}
+
+  /* ROOM CARDS */
+  .room-grid{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:18px;
+  }
+  .room-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:20px;
+    padding:18px 18px 16px; box-shadow:var(--shadow); cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease;
+    display:flex; flex-direction:column; gap:12px;
+    border-top:6px solid var(--accent, var(--neon-pink));
+  }
+  .room-card:hover{transform:translateY(-3px) rotate(-0.3deg); box-shadow:0 6px 10px rgba(27,23,38,.08), 0 20px 36px rgba(27,23,38,.14);}
+  .room-card:focus-visible, .icon-btn:focus-visible, .btn:focus-visible, select:focus-visible, input:focus-visible{
+    outline:3px solid var(--neon-cyan); outline-offset:2px;
+  }
+  .room-card.accent-pink{--accent:var(--neon-pink);}
+  .room-card.accent-yellow{--accent:var(--neon-yellow);}
+  .room-card.accent-cyan{--accent:var(--neon-cyan);}
+  .room-card.accent-lime{--accent:var(--neon-lime);}
+
+  .room-head{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .room-name{font-family:'Kanit',sans-serif; font-size:19px; font-weight:700;}
+  .room-meta{font-size:12.5px; color:var(--ink-muted); margin-top:2px;}
+  .status-pill{
+    font-family:'Kanit',sans-serif; font-size:12px; font-weight:700;
+    padding:5px 12px; border-radius:100px; white-space:nowrap;
+  }
+  .status-pill.free{background:var(--free-tint); color:var(--free);}
+  .status-pill.busy{background:var(--busy-tint); color:var(--busy);}
+
+  .room-current{font-size:13px; color:var(--ink); min-height:18px;}
+  .room-current b{font-weight:700;}
+  .room-next{font-size:12px; color:var(--ink-muted); font-family:'JetBrains Mono',monospace;}
+
+  .mini-timeline{position:relative; height:26px; border-radius:8px; background:var(--free-tint); overflow:hidden; border:1px solid var(--border);}
+  .mini-block{position:absolute; top:0; bottom:0; background:var(--neon-pink); opacity:.9;}
+  .mini-now{position:absolute; top:-2px; bottom:-2px; width:3px; background:var(--ink); z-index:2; border-radius:2px;}
+  .mini-ticks{display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--ink-faint); margin-top:3px;}
+
+  /* ROOM DETAIL VIEW */
+  .back-btn{
+    display:inline-flex; align-items:center; gap:6px; background:none; border:none;
+    color:var(--brand); font-family:'Kanit',sans-serif; font-weight:700; font-size:14px;
+    cursor:pointer; padding:8px 0; margin-bottom:12px;
+  }
+  .back-btn:hover{text-decoration:underline;}
+
+  .detail-header{
+    display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
+    flex-wrap:wrap; margin-bottom:20px;
+  }
+  .detail-title{
+    font-family:'Kanit',sans-serif; font-size:28px; font-weight:800;
+    text-shadow:3px 3px 0 var(--neon-yellow);
+  }
+  .detail-meta{color:var(--ink-muted); font-size:13.5px; margin-top:6px;}
+
+  .btn{
+    font-family:'Kanit',sans-serif; font-weight:700; font-size:14px; border-radius:100px;
+    padding:11px 20px; cursor:pointer; border:2px solid transparent; transition:transform .12s, background .15s;
+  }
+  .btn.primary{background:var(--brand); color:#fff; box-shadow:0 4px 0 var(--brand-dark);}
+  .btn.primary:hover{transform:translateY(-1px);}
+  .btn.primary:active{transform:translateY(2px); box-shadow:0 1px 0 var(--brand-dark);}
+  .btn.ghost{background:var(--surface); border-color:var(--neon-cyan); color:var(--ink);}
+  .btn.ghost:hover{background:var(--cyan-tint);}
+  .btn.small{padding:6px 14px; font-size:12px;}
+  .btn.danger-outline{background:var(--surface); border-color:var(--busy); color:var(--busy);}
+
+  .date-nav{
+    display:flex; align-items:center; gap:10px; background:var(--paper); border:1px solid var(--border);
+    border-radius:100px; padding:10px 16px; margin-bottom:16px; flex-wrap:wrap;
+  }
+  .icon-btn{
+    width:34px; height:34px; border-radius:50%; border:2px solid var(--neon-cyan); background:var(--surface);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:17px; color:var(--ink); font-weight:700;
+  }
+  .icon-btn:hover{background:var(--cyan-tint);}
+  .date-nav input[type=date]{
+    font-family:'JetBrains Mono',monospace; border:1px solid var(--border); border-radius:10px;
+    padding:7px 10px; font-size:13.5px; background:var(--surface); color:var(--ink);
+  }
+  .date-nav .today-badge{
+    font-family:'Kanit',sans-serif; font-size:12px; color:var(--ink); font-weight:700;
+    background:var(--neon-lime); padding:5px 12px; border-radius:100px;
+  }
+  .date-nav .spacer{flex:1;}
+
+  .day-banner{
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:14px 20px;
+    margin-bottom:16px; box-shadow:var(--shadow);
+  }
+  .day-banner .label{font-size:13px; color:var(--ink-muted);}
+  .day-banner .status{font-family:'Kanit',sans-serif; font-weight:800; font-size:18px;}
+  .day-banner .status.free{color:var(--free);}
+  .day-banner .status.busy{color:var(--busy);}
+
+  /* timeline grid */
+  .timeline-wrap{
+    background:var(--surface); border:1px solid var(--border); border-radius:20px;
+    box-shadow:var(--shadow); padding:18px; overflow-x:auto;
+  }
+  .timeline{position:relative; display:flex; min-width:340px;}
+  .timeline-labels{width:56px; flex-shrink:0;}
+  .timeline-track{position:relative; flex:1; border-left:1px solid var(--border);}
+  .tl-row{height:40px; border-bottom:1px dashed var(--border); position:relative;}
+  .tl-row:last-child{border-bottom:none;}
+  .tl-label{
+    height:40px; display:flex; align-items:flex-start; justify-content:flex-end;
+    padding-right:10px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-faint);
+    transform:translateY(-6px);
+  }
+  .tl-label.hour{color:var(--ink-muted); font-weight:700;}
+  .tl-slot-btn{
+    position:absolute; inset:1px 4px; border-radius:8px; cursor:pointer; border:1px dashed transparent;
+  }
+  .tl-slot-btn:hover{background:var(--free-tint); border-color:var(--free);}
+  .booking-block{
+    position:absolute; left:4px; right:4px; background:var(--busy-tint); border-left:4px solid var(--neon-pink);
+    border-radius:10px; padding:6px 10px; overflow:hidden;
+  }
+  .booking-block .b-time{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--busy); font-weight:700;}
+  .booking-block .b-title{font-size:12.5px; font-weight:700; color:var(--ink); margin-top:1px;}
+  .booking-block .b-who{font-size:11px; color:var(--ink-muted);}
+  .booking-block .b-del{
+    position:absolute; top:4px; right:4px; background:none; border:none; color:var(--busy);
+    cursor:pointer; font-size:14px; opacity:0; transition:opacity .15s; line-height:1;
+  }
+  .booking-block:hover .b-del{opacity:1;}
+  .now-line{position:absolute; left:0; right:0; height:3px; background:var(--ink); z-index:3; border-radius:2px;}
+  .now-line::before{
+    content:'ตอนนี้'; position:absolute; left:-4px; top:-9px; font-family:'Kanit',sans-serif; font-weight:700;
+    font-size:10px; background:var(--ink); color:#fff; padding:1px 6px; border-radius:4px; transform:translateX(-100%);
+  }
+
+  /* MODAL */
+  .overlay{
+    position:fixed; inset:0; background:rgba(27,23,38,.5); display:flex; align-items:center;
+    justify-content:center; z-index:50; padding:20px;
+  }
+  .modal{
+    background:var(--surface); border-radius:24px; padding:28px; width:100%; max-width:420px;
+    box-shadow:0 20px 60px rgba(0,0,0,.3);
+    border-top:8px solid var(--neon-pink);
+  }
+  .modal h2{font-family:'Kanit',sans-serif; font-size:21px; margin:0 0 4px; font-weight:800;}
+  .modal .sub{font-size:13px; color:var(--ink-muted); margin-bottom:18px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12.5px; font-weight:700; color:var(--ink-muted); margin-bottom:5px;}
+  .field input, .field select{
+    width:100%; padding:10px 12px; border:2px solid var(--border); border-radius:12px;
+    font-family:'Kanit',sans-serif; font-size:14px; background:var(--paper); color:var(--ink);
+  }
+  .field input:focus, .field select:focus{border-color:var(--neon-cyan); outline:none;}
+  .field-row{display:flex; gap:10px;}
+  .field-row .field{flex:1;}
+  .field .err{color:var(--busy); font-size:12px; margin-top:4px; display:none;}
+  .field.has-err .err{display:block;}
+  .field.has-err input, .field.has-err select{border-color:var(--busy);}
+  .modal-actions{display:flex; gap:10px; margin-top:20px;}
+  .modal-actions .btn{flex:1;}
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:#fff; padding:12px 22px; border-radius:100px; font-size:13.5px;
+    font-weight:700; box-shadow:0 10px 30px rgba(0,0,0,.3); z-index:60; opacity:0;
+    transition:opacity .2s, transform .2s; pointer-events:none; font-family:'Kanit',sans-serif;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  .empty-note{font-size:12.5px; color:var(--ink-faint); font-family:'JetBrains Mono',monospace; padding:8px 0;}
+
+  .sync-banner{
+    background:var(--amber-tint); color:var(--amber); border:2px solid var(--neon-yellow);
+    border-radius:14px; padding:10px 16px; font-size:13px; font-weight:700; margin-bottom:16px;
+  }
+  .sync-ok{
+    display:inline-flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace;
+    font-size:11px; color:var(--free); margin:0 0 18px;
+  }
+  .sync-ok::before{content:'●'; font-size:9px;}
+
+  .access-badge{
+    font-family:'Kanit',sans-serif; font-size:12px; font-weight:700;
+    padding:7px 14px; border-radius:100px; border:2px solid; cursor:pointer; white-space:nowrap;
+  }
+  .access-badge.locked{background:var(--busy-tint); color:var(--busy); border-color:var(--busy);}
+  .access-badge.unlocked{background:var(--free-tint); color:var(--free); border-color:var(--free);}
+
+  @media (max-width:560px){
+    body{padding:10px;}
+    .clock-block{text-align:left;}
+    .topbar{flex-direction:column; align-items:flex-start;}
+    .browser-search{display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="browser-frame">
+  <div class="browser-topbar">
+    <div class="browser-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+    <div class="browser-search">🔍 ระบบจองห้องประชุม</div>
+  </div>
+  <div id="app"></div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+/* ---------------- DATA ---------------- */
+const ROOMS = [
+  {id:'room1', name:'ห้องประชุมสาขาวิชา', amenities:'อุปกรณ์ครบ', capacity:30},
+  {id:'room2', name:'ห้องสัมมนา 1', amenities:'อุปกรณ์ครบ', capacity:12},
+  {id:'room3', name:'ห้องสัมมนา 2', amenities:'อุปกรณ์ครบ', capacity:12},
+  {id:'room4', name:'ห้องสัมมนา 3', amenities:'ไม่มีจอทีวี', capacity:12},
+  {id:'room5', name:'ห้องสัมมนา 4', amenities:'อุปกรณ์ครบ', capacity:12},
+  {id:'room6', name:'ห้องบรรยาย/ห้องเรียน', amenities:'อุปกรณ์ครบ', capacity:'50+'},
+];
+const ACCENTS = ['accent-pink','accent-yellow','accent-cyan','accent-lime'];
+
+const DAY_START = 8*60;   // 08:00 in minutes
+const DAY_END   = 17*60;  // 17:00 in minutes
+const SLOT      = 30;     // minutes
+const SLOT_PX   = 40;
+const TOTAL_SLOTS = (DAY_END-DAY_START)/SLOT;
+
+function todayISO(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function pad(n){return String(n).padStart(2,'0');}
+function minToLabel(min){return pad(Math.floor(min/60))+':'+pad(min%60);}
+function labelToMin(lbl){const [h,m]=lbl.split(':').map(Number); return h*60+m;}
+function uid(){return Math.random().toString(36).slice(2,9);}
+
+/* ---------------- GOOGLE SHEETS CONFIG ----------------
+   วิธีเชื่อมต่อ (ดูรายละเอียดขั้นตอนที่ Code.gs ที่แนบมาให้):
+   1. สร้าง Google Sheet ว่าง 1 ไฟล์
+   2. เปิด Extensions > Apps Script แล้ววางโค้ดจากไฟล์ Code.gs
+   3. Deploy > New deployment > Web app
+      - Execute as: Me
+      - Who has access: Anyone
+   4. คัดลอก URL ที่ได้มาวางแทนค่า API_URL ด้านล่างนี้
+------------------------------------------------------- */
+const API_URL = 'https://script.google.com/macros/s/AKfycbxFY85AFzjn7wN3hrogxk549Sd3TR-gd-358Y6utNYX0p_8sbAtEag9SFL8NU1Gi1Gx/exec';
+
+let bookings = [];
+let dataReady = false;
+let syncError = false;
+let lastSync = null;
+let editPasscode = null; // เก็บรหัสผ่านไว้ในหน่วยความจำหน้านี้เท่านั้น (หายเมื่อรีเฟรช)
+
+function parseTimeVal(v){
+  if(typeof v==='number') return v;
+  if(typeof v==='string' && v.includes(':')) return labelToMin(v.trim());
+  const n = Number(v);
+  return isNaN(n) ? 0 : n;
+}
+
+async function requireEdit(){
+  if(editPasscode) return true;
+  const code = prompt('การจอง/ยกเลิกต้องใช้รหัสผ่าน กรุณากรอกรหัสผ่านสำหรับผู้มีสิทธิ์:');
+  if(!code) return false;
+  showToast('กำลังตรวจสอบรหัสผ่าน...');
+  try{
+    const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'verify', passcode:code})});
+    const result = await res.json();
+    if(result && result.ok){
+      editPasscode = code;
+      showToast('ปลดล็อกสิทธิ์แก้ไขแล้ว');
+      render();
+      return true;
+    }
+    showToast('รหัสผ่านไม่ถูกต้อง');
+    return false;
+  }catch(err){
+    console.error(err);
+    showToast('ตรวจสอบรหัสผ่านไม่สำเร็จ');
+    return false;
+  }
+}
+function toggleLock(){
+  if(editPasscode){
+    if(confirm('ล็อกโหมดแก้ไขอีกครั้ง (กลับไปเป็นดูอย่างเดียว) หรือไม่?')){
+      editPasscode = null;
+      showToast('ล็อกโหมดแก้ไขแล้ว');
+      render();
+    }
+  } else {
+    requireEdit();
+  }
+}
+function accessBadge(){
+  return editPasscode
+    ? `<button class="access-badge unlocked" onclick="toggleLock()">🔓 โหมดแก้ไข (คลิกเพื่อล็อก)</button>`
+    : `<button class="access-badge locked" onclick="toggleLock()">🔒 ดูอย่างเดียว (คลิกเพื่อปลดล็อก)</button>`;
+}
+
+async function loadBookings(){
+  if(!API_URL || API_URL.includes('PASTE_YOUR')){
+    syncError = true;
+    dataReady = true;
+    render();
+    return;
+  }
+  try{
+    const res = await fetch(API_URL);
+    if(!res.ok) throw new Error('bad response');
+    const data = await res.json();
+    bookings = data.map(b=>({
+      ...b,
+      date: typeof b.date === 'string' ? b.date.slice(0,10) : b.date,
+      start: parseTimeVal(b.start),
+      end: parseTimeVal(b.end)
+    }));
+    syncError = false;
+    lastSync = new Date();
+  }catch(err){
+    console.error('โหลดข้อมูลจาก Google Sheet ไม่สำเร็จ', err);
+    syncError = true;
+  }
+  dataReady = true;
+  render();
+}
+
+let state = { view:'home', roomId:null, selectedDate:todayISO(), homeDate:todayISO() };
+
+/* ---------------- HELPERS ---------------- */
+function nowMinutes(){const d=new Date(); return d.getHours()*60+d.getMinutes();}
+function isToday(dateStr){return dateStr===todayISO();}
+
+function roomBookings(roomId, date){
+  return bookings.filter(b=>b.roomId===roomId && b.date===date).sort((a,b)=>a.start-b.start);
+}
+function currentBooking(roomId){
+  const t = todayISO();
+  const nm = nowMinutes();
+  return roomBookings(roomId,t).find(b=> nm>=b.start && nm<b.end);
+}
+function nextBooking(roomId){
+  const t = todayISO();
+  const nm = nowMinutes();
+  return roomBookings(roomId,t).find(b=> b.start>nm);
+}
+function dayFirstBooking(roomId,date){
+  return roomBookings(roomId,date)[0] || null;
+}
+function isFullDay(roomId,date){
+  const list = roomBookings(roomId,date);
+  let cursor = DAY_START;
+  for(const b of list){
+    if(b.start>cursor) return false;
+    cursor = Math.max(cursor,b.end);
+  }
+  return cursor>=DAY_END;
+}
+function hasOverlap(roomId,date,start,end,excludeId){
+  return bookings.some(b=> b.roomId===roomId && b.date===date && b.id!==excludeId && start<b.end && end>b.start);
+}
+function fmtDateThai(dateStr){
+  const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const [y,m,d] = dateStr.split('-').map(Number);
+  return `${d} ${months[m-1]} ${y+543}`;
+}
+function shiftDate(dateStr,delta){
+  const d = new Date(dateStr+'T00:00:00');
+  d.setDate(d.getDate()+delta);
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+}
+
+/* ---------------- RENDER: HOME ---------------- */
+function renderClock(){
+  const d = new Date();
+  const time = pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+  const days = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+  return `<div class="clock-block"><div class="time">${time}</div><div class="date">วัน${days[d.getDay()]}ที่ ${fmtDateThai(todayISO())}</div></div>`;
+}
+
+function miniTimeline(roomId, date){
+  const list = roomBookings(roomId, date);
+  const totalMin = DAY_END-DAY_START;
+  let blocks = list.map(b=>{
+    const left = Math.max(0,(b.start-DAY_START)/totalMin*100);
+    const width = (Math.min(b.end,DAY_END)-Math.max(b.start,DAY_START))/totalMin*100;
+    return `<div class="mini-block" style="left:${left}%;width:${width}%"></div>`;
+  }).join('');
+  let nowMark = '';
+  if(isToday(date)){
+    const nm = nowMinutes();
+    if(nm>=DAY_START && nm<=DAY_END){
+      const left = (nm-DAY_START)/totalMin*100;
+      nowMark = `<div class="mini-now" style="left:${left}%"></div>`;
+    }
+  }
+  return `<div class="mini-timeline">${blocks}${nowMark}</div>
+  <div class="mini-ticks"><span>${minToLabel(DAY_START)}</span><span>${minToLabel((DAY_START+DAY_END)/2)}</span><span>${minToLabel(DAY_END)}</span></div>`;
+}
+
+function renderRoomCard(room, date){
+  const today = isToday(date);
+  const cur = today ? currentBooking(room.id) : null;
+  const nxt = today ? nextBooking(room.id) : null;
+  const list = roomBookings(room.id, date);
+  const full = isFullDay(room.id, date);
+  const busy = today ? !!cur : full;
+  const accentIdx = ROOMS.findIndex(r=>r.id===room.id);
+  const accentClass = ACCENTS[accentIdx % ACCENTS.length];
+
+  let currentLine;
+  if(today){
+    currentLine = cur ? `กำลังใช้: <b>${cur.title}</b> (${minToLabel(cur.start)}–${minToLabel(cur.end)})` : (nxt? `ว่างจนถึง ${minToLabel(nxt.start)}` : 'ว่างตลอดวันนี้');
+  } else {
+    currentLine = list.length ? `มีการจอง ${list.length} รายการในวันนี้` : 'ไม่มีการจองในวันนี้';
+  }
+
+  let nextLine;
+  if(today){
+    nextLine = nxt ? `▸ ถัดไป ${minToLabel(nxt.start)}–${minToLabel(nxt.end)} · ${nxt.title}` : '▸ ไม่มีการจองถัดไปวันนี้';
+  } else {
+    const first = dayFirstBooking(room.id, date);
+    nextLine = first ? `▸ เริ่มแรก ${minToLabel(first.start)}–${minToLabel(first.end)} · ${first.title}` : '▸ ว่างตลอดวัน';
+  }
+
+  return `
+  <div class="room-card ${accentClass}" tabindex="0" role="button" onclick="openRoom('${room.id}')" onkeydown="if(event.key==='Enter')openRoom('${room.id}')">
+    <div class="room-head">
+      <div>
+        <div class="room-name">${room.name}</div>
+        <div class="room-meta">${room.amenities} · จุได้ ${room.capacity} คน</div>
+      </div>
+      <span class="status-pill ${busy?'busy':'free'}">${today ? (busy?'ไม่ว่าง':'ว่างตอนนี้') : (busy?'เต็มทั้งวัน':'ว่าง')}</span>
+    </div>
+    <div class="room-current">${currentLine}</div>
+    ${miniTimeline(room.id, date)}
+    <div class="room-next">${nextLine}</div>
+  </div>`;
+}
+
+function renderHome(){
+  const date = state.homeDate;
+  const titleText = isToday(date) ? 'ภาพรวมห้องประชุมวันนี้' : `ภาพรวมห้องประชุมวันที่ ${fmtDateThai(date)}`;
+  return `
+  <div class="topbar">
+    <div class="brand-block">
+      <div class="eyebrow">ระบบจองห้องประชุม</div>
+      <h1>${titleText}</h1>
+    </div>
+    ${renderClock()}
+  </div>
+  <div class="date-nav">
+    <button class="icon-btn" onclick="changeHomeDate(-1)" aria-label="วันก่อนหน้า">‹</button>
+    <input type="date" value="${date}" onchange="setHomeDate(this.value)">
+    <button class="icon-btn" onclick="changeHomeDate(1)" aria-label="วันถัดไป">›</button>
+    ${isToday(date) ? '<span class="today-badge">วันนี้</span>' : `<button class="btn ghost small" onclick="goHomeToday()">กลับไปวันนี้</button>`}
+    <div class="spacer"></div>
+    ${accessBadge()}
+  </div>
+  ${!syncError ? `<div class="sync-ok">เชื่อมต่อ Google Sheet แล้ว${lastSync ? ' · ซิงค์ล่าสุด ' + pad(lastSync.getHours())+':'+pad(lastSync.getMinutes())+':'+pad(lastSync.getSeconds()) : ''}</div>` : ''}
+  <div class="room-grid">
+    ${ROOMS.map(r=>renderRoomCard(r, date)).join('')}
+  </div>`;
+}
+
+/* ---------------- RENDER: ROOM DETAIL ---------------- */
+function renderTimeline(room, date){
+  const list = roomBookings(room.id, date);
+  let labels = '';
+  let rows = '';
+  for(let m=DAY_START;m<DAY_END;m+=SLOT){
+    const isHour = m%60===0;
+    labels += `<div class="tl-label ${isHour?'hour':''}">${isHour?minToLabel(m):''}</div>`;
+    rows += `<div class="tl-row"><div class="tl-slot-btn" title="จองช่วง ${minToLabel(m)}" onclick="event.stopPropagation();guardedOpenModal('${room.id}','${date}',${m})"></div></div>`;
+  }
+  let blocksHtml = list.map(b=>{
+    const top = (b.start-DAY_START)/SLOT*SLOT_PX;
+    const height = (Math.min(b.end,DAY_END)-Math.max(b.start,DAY_START))/SLOT*SLOT_PX - 2;
+    return `<div class="booking-block" style="top:${top}px;height:${Math.max(height,24)}px" onclick="event.stopPropagation()">
+      <button class="b-del" title="ยกเลิกการจอง" onclick="event.stopPropagation();deleteBooking('${b.id}')">✕</button>
+      <div class="b-time">${minToLabel(b.start)}–${minToLabel(b.end)}</div>
+      <div class="b-title">${b.title}</div>
+      <div class="b-who">${b.who}</div>
+    </div>`;
+  }).join('');
+  let nowLine = '';
+  if(isToday(date)){
+    const nm = nowMinutes();
+    if(nm>=DAY_START && nm<=DAY_END){
+      const top = (nm-DAY_START)/SLOT*SLOT_PX;
+      nowLine = `<div class="now-line" style="top:${top}px"></div>`;
+    }
+  }
+  return `
+  <div class="timeline-wrap">
+    <div class="timeline">
+      <div class="timeline-labels">${labels}</div>
+      <div class="timeline-track" style="height:${TOTAL_SLOTS*SLOT_PX}px">
+        ${rows}
+        ${blocksHtml}
+        ${nowLine}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderRoomView(){
+  const room = ROOMS.find(r=>r.id===state.roomId);
+  const date = state.selectedDate;
+  const full = isFullDay(room.id,date);
+  const count = roomBookings(room.id,date).length;
+  return `
+  <button class="back-btn" onclick="goHome()">← กลับหน้ารวม</button>
+  <div class="detail-header">
+    <div>
+      <div class="detail-title">${room.name}</div>
+      <div class="detail-meta">${room.amenities} · จุได้ ${room.capacity} คน</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      ${accessBadge()}
+      <button class="btn primary" onclick="guardedOpenModal('${room.id}','${date}',null)">+ จองห้องนี้</button>
+    </div>
+  </div>
+  <div class="date-nav">
+    <button class="icon-btn" onclick="changeDate(-1)" aria-label="วันก่อนหน้า">‹</button>
+    <input type="date" value="${date}" onchange="setDate(this.value)">
+    <button class="icon-btn" onclick="changeDate(1)" aria-label="วันถัดไป">›</button>
+    ${isToday(date) ? '<span class="today-badge">วันนี้</span>' : ''}
+    <div class="spacer"></div>
+  </div>
+  <div class="day-banner">
+    <div class="label">สถานะวันที่ ${fmtDateThai(date)} · มีการจอง ${count} รายการ</div>
+    <div class="status ${full?'busy':'free'}">${full?'● เต็ม':'● ว่าง'}</div>
+  </div>
+  ${renderTimeline(room,date)}
+  <div class="empty-note">เวลาทำการ ${minToLabel(DAY_START)}–${minToLabel(DAY_END)} · คลิกที่ช่องว่างในตารางเพื่อจองอย่างรวดเร็ว</div>
+  `;
+}
+
+/* ---------------- MODAL ---------------- */
+let modalState = null;
+
+async function guardedOpenModal(roomId, date, startMin){
+  if(!(await requireEdit())) return;
+  openModal(roomId, date, startMin);
+}
+
+function timeOptions(kind, minStart){
+  let opts = '';
+  const from = kind==='end' ? (minStart!=null? minStart+SLOT : DAY_START+SLOT) : DAY_START;
+  const to = kind==='end' ? DAY_END : DAY_END-SLOT;
+  for(let m=from;m<=to;m+=SLOT){
+    opts += `<option value="${m}">${minToLabel(m)}</option>`;
+  }
+  return opts;
+}
+
+function openModal(roomId, date, startMin){
+  modalState = {roomId, date, start: startMin};
+  const room = ROOMS.find(r=>r.id===roomId);
+  const startVal = startMin!=null ? startMin : DAY_START;
+  const endVal = Math.min(startVal+60, DAY_END);
+  document.getElementById('modal-root').innerHTML = `
+  <div class="overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <h2>จองห้อง ${room.name}</h2>
+      <div class="sub">${fmtDateThai(date)} · ${room.amenities}</div>
+      <div class="field">
+        <label>หัวข้อการประชุม</label>
+        <input id="f-title" type="text" placeholder="เช่น ประชุมทีมการตลาด">
+        <div class="err">กรุณากรอกหัวข้อการประชุม</div>
+      </div>
+      <div class="field">
+        <label>ชื่อผู้จอง</label>
+        <input id="f-who" type="text" placeholder="เช่น แนน">
+        <div class="err">กรุณากรอกชื่อผู้จอง</div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>เวลาเริ่ม</label>
+          <select id="f-start" onchange="onStartChange()">${timeOptions('start')}</select>
+        </div>
+        <div class="field">
+          <label>เวลาสิ้นสุด</label>
+          <select id="f-end">${timeOptions('end', startVal)}</select>
+        </div>
+      </div>
+      <div class="field" id="f-conflict-wrap" style="display:none">
+        <div class="err" style="display:block">ช่วงเวลานี้ถูกจองแล้ว กรุณาเลือกเวลาอื่น</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" onclick="closeModal()">ยกเลิก</button>
+        <button class="btn primary" onclick="submitBooking()">ยืนยันการจอง</button>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('f-start').value = startVal;
+  document.getElementById('f-end').value = endVal;
+}
+function onStartChange(){
+  const startVal = Number(document.getElementById('f-start').value);
+  const endSel = document.getElementById('f-end');
+  endSel.innerHTML = timeOptions('end', startVal);
+  endSel.value = Math.min(startVal+60, DAY_END);
+}
+function closeModal(){
+  modalState = null;
+  document.getElementById('modal-root').innerHTML = '';
+}
+async function submitBooking(){
+  const title = document.getElementById('f-title').value.trim();
+  const who = document.getElementById('f-who').value.trim();
+  const start = Number(document.getElementById('f-start').value);
+  const end = Number(document.getElementById('f-end').value);
+  let ok = true;
+  toggleErr('f-title', !title); if(!title) ok=false;
+  toggleErr('f-who', !who); if(!who) ok=false;
+  if(end<=start){ ok=false; }
+  if(!ok){ return; }
+  if(hasOverlap(modalState.roomId, modalState.date, start, end, null)){
+    document.getElementById('f-conflict-wrap').style.display='block';
+    return;
+  }
+  if(!API_URL || API_URL.includes('PASTE_YOUR')){
+    showToast('ยังไม่ได้ตั้งค่า Google Sheet — ดูคำแนะนำการเชื่อมต่อ');
+    return;
+  }
+  const newBooking = {id:uid(), roomId:modalState.roomId, date:modalState.date, start:minToLabel(start), end:minToLabel(end), title, who};
+  closeModal();
+  showToast('กำลังบันทึกลง Google Sheet...');
+  try{
+    const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'add', booking:newBooking, passcode: editPasscode})});
+    const result = await res.json();
+    if(!result || !result.ok) throw new Error(result && result.error ? result.error : 'การเชื่อมต่อ Google Sheet ล้มเหลว (ตรวจสอบการ Deploy)');
+    await loadBookings();
+    showToast('จองห้องสำเร็จ');
+  }catch(err){
+    console.error('บันทึกการจองไม่สำเร็จ:', err);
+    showToast('บันทึกไม่สำเร็จ: ' + err.message);
+  }
+}
+function toggleErr(id, isErr){
+  const field = document.getElementById(id).closest('.field');
+  field.classList.toggle('has-err', isErr);
+}
+async function deleteBooking(id){
+  if(!(await requireEdit())) return;
+  if(!confirm('ยกเลิกการจองนี้ใช่หรือไม่?')) return;
+  if(!API_URL || API_URL.includes('PASTE_YOUR')){
+    showToast('ยังไม่ได้ตั้งค่า Google Sheet — ดูคำแนะนำการเชื่อมต่อ');
+    return;
+  }
+  showToast('กำลังยกเลิก...');
+  try{
+    const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'delete', id, passcode: editPasscode})});
+    const result = await res.json();
+    if(!result || !result.ok) throw new Error(result && result.error ? result.error : 'การเชื่อมต่อ Google Sheet ล้มเหลว (ตรวจสอบการ Deploy)');
+    await loadBookings();
+    showToast('ยกเลิกการจองแล้ว');
+  }catch(err){
+    console.error('ยกเลิกการจองไม่สำเร็จ:', err);
+    showToast('ยกเลิกไม่สำเร็จ: ' + err.message);
+  }
+}
+
+/* ---------------- NAV ---------------- */
+function openRoom(roomId){ state.view='room'; state.roomId=roomId; state.selectedDate = state.homeDate; render(); }
+function goHome(){ state.view='home'; render(); }
+function changeDate(delta){ state.selectedDate = shiftDate(state.selectedDate, delta); render(); }
+function setDate(v){ state.selectedDate = v; render(); }
+function changeHomeDate(delta){ state.homeDate = shiftDate(state.homeDate, delta); render(); }
+function setHomeDate(v){ state.homeDate = v; render(); }
+function goHomeToday(){ state.homeDate = todayISO(); render(); }
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+/* ---------------- MAIN RENDER ---------------- */
+function render(){
+  const root = document.getElementById('app');
+  if(!dataReady){
+    root.innerHTML = `<div class="topbar"><div class="brand-block"><div class="eyebrow">ระบบจองห้องประชุม</div><h1>กำลังโหลดข้อมูล...</h1></div></div>`;
+    return;
+  }
+  let banner = '';
+  if(syncError){
+    banner = `<div class="sync-banner">⚠ ยังไม่ได้เชื่อมต่อ Google Sheet (หรือเชื่อมต่อไม่สำเร็จ) — ตั้งค่า API_URL ในโค้ดตามคำแนะนำใน Code.gs ก่อนใช้งานจริง ตอนนี้ข้อมูลจะไม่ถูกบันทึกหรือแชร์กับผู้อื่น</div>`;
+  }
+  root.innerHTML = banner + (state.view==='home' ? renderHome() : renderRoomView())
+    + `<div id="modal-root"></div>`;
+}
+loadBookings();
+setInterval(()=>{ if(dataReady && !modalState) loadBookings(); }, 15000);
+setInterval(()=>{ if(state.view==='home' && dataReady){ const c=document.querySelector('.clock-block'); if(c) c.outerHTML = renderClock(); } }, 1000);
+</script>
+</body>
+</html>
