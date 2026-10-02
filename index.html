@@ -294,7 +294,7 @@
   .access-badge.unlocked{background:var(--free-tint); color:var(--free); border-color:var(--free);}
 
   .week-grid{
-    display:grid; grid-template-columns:repeat(7,minmax(130px,1fr)); gap:12px;
+    display:grid; grid-template-columns:repeat(5,minmax(130px,1fr)); gap:12px;
     overflow-x:auto; padding-bottom:6px;
   }
   .week-day-card{
@@ -319,7 +319,7 @@
     .clock-block{text-align:left;}
     .topbar{flex-direction:column; align-items:flex-start;}
     .browser-search{display:none;}
-    .week-grid{grid-template-columns:repeat(7,130px);}
+    .week-grid{grid-template-columns:repeat(5,130px);}
   }
 </style>
 </head>
@@ -375,7 +375,7 @@ let bookings = [];
 let dataReady = false;
 let syncError = false;
 let lastSync = null;
-let editPasscode = null; // เก็บรหัสผ่านไว้ในหน่วยความจำหน้านี้เท่านั้น (หายเมื่อรีเฟรช)
+let currentUser = null; // {username, password, name, isAdmin} เก็บไว้ในหน่วยความจำหน้านี้เท่านั้น (หายเมื่อรีเฟรช)
 
 function parseTimeVal(v){
   if(typeof v==='number') return v;
@@ -384,33 +384,43 @@ function parseTimeVal(v){
   return isNaN(n) ? 0 : n;
 }
 
-let passcodeResolver = null;
-function askPasscode(){
+let loginResolver = null;
+function askLogin(){
   return new Promise(resolve=>{
-    passcodeResolver = resolve;
+    loginResolver = resolve;
     document.getElementById('modal-root').innerHTML = `
-    <div class="overlay" onclick="if(event.target===this)resolvePasscodeModal(null)">
+    <div class="overlay" onclick="if(event.target===this)resolveLoginModal(null)">
       <div class="modal">
         <h2>🔐 ระบบจองห้องประชุม by witchuda</h2>
-        <div class="sub">กรอกรหัสผ่านสำหรับผู้มีสิทธิ์จอง/ยกเลิกห้อง</div>
+        <div class="sub">เข้าสู่ระบบเพื่อจอง/ยกเลิกห้อง</div>
+        <div class="field">
+          <label>ชื่อผู้ใช้</label>
+          <input id="f-username" type="text" placeholder="กรอกชื่อผู้ใช้" autocomplete="username">
+        </div>
         <div class="field">
           <label>รหัสผ่าน</label>
-          <input id="f-passcode" type="password" placeholder="กรอกรหัสผ่านที่นี่">
+          <input id="f-userpass" type="password" placeholder="กรอกรหัสผ่าน" autocomplete="current-password">
         </div>
+        <div class="field" id="f-login-err" style="display:none"><div class="err" style="display:block">ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</div></div>
         <div class="modal-actions">
-          <button class="btn ghost" onclick="resolvePasscodeModal(null)">ยกเลิก</button>
-          <button class="btn primary" onclick="resolvePasscodeModal(document.getElementById('f-passcode').value)">ตกลง</button>
+          <button class="btn ghost" onclick="resolveLoginModal(null)">ยกเลิก</button>
+          <button class="btn primary" onclick="submitLoginModal()">เข้าสู่ระบบ</button>
         </div>
       </div>
     </div>`;
-    const inp = document.getElementById('f-passcode');
-    inp.focus();
-    inp.addEventListener('keydown', e=>{ if(e.key==='Enter') resolvePasscodeModal(inp.value); });
+    const u = document.getElementById('f-username');
+    u.focus();
+    document.getElementById('f-userpass').addEventListener('keydown', e=>{ if(e.key==='Enter') submitLoginModal(); });
   });
 }
-function resolvePasscodeModal(value){
+function submitLoginModal(){
+  const username = document.getElementById('f-username').value.trim();
+  const password = document.getElementById('f-userpass').value;
+  resolveLoginModal(username && password ? {username, password} : null);
+}
+function resolveLoginModal(value){
   document.getElementById('modal-root').innerHTML = '';
-  if(passcodeResolver){ const r = passcodeResolver; passcodeResolver = null; r(value); }
+  if(loginResolver){ const r = loginResolver; loginResolver = null; r(value); }
 }
 
 let confirmResolver = null;
@@ -436,32 +446,32 @@ function resolveConfirmModal(value){
 }
 
 async function requireEdit(){
-  if(editPasscode) return true;
-  const code = await askPasscode();
-  if(!code) return false;
-  showToast('กำลังตรวจสอบรหัสผ่าน...');
+  if(currentUser) return true;
+  const cred = await askLogin();
+  if(!cred) return false;
+  showToast('กำลังตรวจสอบ...');
   try{
-    const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'verify', passcode:code})});
+    const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'login', username:cred.username, password:cred.password})});
     const result = await res.json();
     if(result && result.ok){
-      editPasscode = code;
-      showToast('ปลดล็อกสิทธิ์แก้ไขแล้ว');
+      currentUser = {username:cred.username, password:cred.password, name:result.name, isAdmin:!!result.isAdmin};
+      showToast(`เข้าสู่ระบบสำเร็จ: ${result.name}${result.isAdmin?' (ผู้ดูแลระบบ)':''}`);
       render();
       return true;
     }
-    showToast('รหัสผ่านไม่ถูกต้อง');
+    showToast(result && result.error ? result.error : 'เข้าสู่ระบบไม่สำเร็จ');
     return false;
   }catch(err){
     console.error(err);
-    showToast('ตรวจสอบรหัสผ่านไม่สำเร็จ');
+    showToast('ตรวจสอบไม่สำเร็จ');
     return false;
   }
 }
 async function toggleLock(){
-  if(editPasscode){
-    if(await askConfirm('ล็อกโหมดแก้ไขอีกครั้ง (กลับไปเป็นดูอย่างเดียว) หรือไม่?')){
-      editPasscode = null;
-      showToast('ล็อกโหมดแก้ไขแล้ว');
+  if(currentUser){
+    if(await askConfirm(`ออกจากระบบ (${currentUser.name}) หรือไม่?`)){
+      currentUser = null;
+      showToast('ออกจากระบบแล้ว');
       render();
     }
   } else {
@@ -469,9 +479,9 @@ async function toggleLock(){
   }
 }
 function accessBadge(){
-  return editPasscode
-    ? `<button class="access-badge unlocked" onclick="toggleLock()">🔓 โหมดแก้ไข (คลิกเพื่อล็อก)</button>`
-    : `<button class="access-badge locked" onclick="toggleLock()">🔒 ดูอย่างเดียว (คลิกเพื่อปลดล็อก)</button>`;
+  return currentUser
+    ? `<button class="access-badge unlocked" onclick="toggleLock()">🔓 ${currentUser.name}${currentUser.isAdmin?' (ผู้ดูแล)':''} (คลิกเพื่อออกจากระบบ)</button>`
+    : `<button class="access-badge locked" onclick="toggleLock()">🔒 ดูอย่างเดียว (คลิกเพื่อเข้าสู่ระบบ)</button>`;
 }
 
 async function loadBookings(){
@@ -489,7 +499,8 @@ async function loadBookings(){
       ...b,
       date: typeof b.date === 'string' ? b.date.slice(0,10) : b.date,
       start: parseTimeVal(b.start),
-      end: parseTimeVal(b.end)
+      end: parseTimeVal(b.end),
+      owner: b.owner || ''
     }));
     syncError = false;
     lastSync = new Date();
@@ -552,11 +563,11 @@ function mondayOf(dateStr){
   return shiftDate(dateStr, offset);
 }
 function weekDates(mondayDateStr){
-  return Array.from({length:7}, (_,i)=> shiftDate(mondayDateStr, i));
+  return Array.from({length:5}, (_,i)=> shiftDate(mondayDateStr, i)); // จันทร์-ศุกร์เท่านั้น
 }
 function fmtWeekRangeThai(mondayDateStr){
   const days = weekDates(mondayDateStr);
-  const start = days[0], end = days[6];
+  const start = days[0], end = days[days.length-1];
   const [ys,ms,ds] = start.split('-').map(Number);
   const [ye,me,de] = end.split('-').map(Number);
   const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
@@ -672,7 +683,7 @@ function renderTimeline(room, date){
     const top = (b.start-DAY_START)/SLOT*SLOT_PX;
     const height = (Math.min(b.end,DAY_END)-Math.max(b.start,DAY_START))/SLOT*SLOT_PX - 2;
     return `<div class="booking-block" style="top:${top}px;height:${Math.max(height,24)}px" onclick="event.stopPropagation()">
-      <button class="b-del" title="ยกเลิกการจอง" onclick="event.stopPropagation();deleteBooking('${b.id}')">✕</button>
+      ${canDelete(b) ? `<button class="b-del" title="ยกเลิกการจอง" onclick="event.stopPropagation();deleteBooking('${b.id}')">✕</button>` : ''}
       <div class="b-time">${minToLabel(b.start)}–${minToLabel(b.end)}</div>
       <div class="b-title">${b.title}</div>
       <div class="b-who">${b.who}</div>
@@ -774,8 +785,8 @@ function renderWeekView(){
     </div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       ${accessBadge()}
-      <button class="btn ghost" onclick="goToDayFromWeek('${room.id}','${isCurrentWeek?todayISO():monday}')">📋 ดูรายวัน</button>
-      <button class="btn primary" onclick="guardedOpenModal('${room.id}','${isCurrentWeek?todayISO():monday}',null)">+ จองห้องนี้</button>
+      <button class="btn ghost" onclick="goToDayFromWeek('${room.id}','${monday}')">📋 ดูรายวัน</button>
+      <button class="btn primary" onclick="guardedOpenModal('${room.id}','${monday}',null)">+ จองห้องนี้</button>
     </div>
   </div>
   <div class="date-nav">
@@ -826,9 +837,8 @@ function openModal(roomId, date, startMin){
         <div class="err">กรุณากรอกหัวข้อการประชุม</div>
       </div>
       <div class="field">
-        <label>ชื่อผู้จอง</label>
-        <input id="f-who" type="text" placeholder="เช่น แนน">
-        <div class="err">กรุณากรอกชื่อผู้จอง</div>
+        <label>ผู้จอง</label>
+        <input type="text" value="${currentUser ? currentUser.name : ''}" readonly style="background:var(--border);color:var(--ink-muted)">
       </div>
       <div class="field-row">
         <div class="field">
@@ -863,13 +873,12 @@ function closeModal(){
   document.getElementById('modal-root').innerHTML = '';
 }
 async function submitBooking(){
+  if(!currentUser){ showToast('กรุณาเข้าสู่ระบบก่อนจอง'); closeModal(); return; }
   const title = document.getElementById('f-title').value.trim();
-  const who = document.getElementById('f-who').value.trim();
   const start = Number(document.getElementById('f-start').value);
   const end = Number(document.getElementById('f-end').value);
   let ok = true;
   toggleErr('f-title', !title); if(!title) ok=false;
-  toggleErr('f-who', !who); if(!who) ok=false;
   if(end<=start){ ok=false; }
   if(!ok){ return; }
   if(hasOverlap(modalState.roomId, modalState.date, start, end, null)){
@@ -880,11 +889,11 @@ async function submitBooking(){
     showToast('ยังไม่ได้ตั้งค่า Google Sheet — ดูคำแนะนำการเชื่อมต่อ');
     return;
   }
-  const newBooking = {id:uid(), roomId:modalState.roomId, date:modalState.date, start:minToLabel(start), end:minToLabel(end), title, who};
+  const newBooking = {id:uid(), roomId:modalState.roomId, date:modalState.date, start:minToLabel(start), end:minToLabel(end), title};
   closeModal();
   showToast('กำลังบันทึกลง Google Sheet...');
   try{
-    const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'add', booking:newBooking, passcode: editPasscode})});
+    const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'add', booking:newBooking, username:currentUser.username, password:currentUser.password})});
     const result = await res.json();
     if(!result || !result.ok) throw new Error(result && result.error ? result.error : 'การเชื่อมต่อ Google Sheet ล้มเหลว (ตรวจสอบการ Deploy)');
     await loadBookings();
@@ -907,7 +916,7 @@ async function deleteBooking(id){
   }
   showToast('กำลังยกเลิก...');
   try{
-    const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'delete', id, passcode: editPasscode})});
+    const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'delete', id, username:currentUser.username, password:currentUser.password})});
     const result = await res.json();
     if(!result || !result.ok) throw new Error(result && result.error ? result.error : 'การเชื่อมต่อ Google Sheet ล้มเหลว (ตรวจสอบการ Deploy)');
     await loadBookings();
@@ -916,6 +925,9 @@ async function deleteBooking(id){
     console.error('ยกเลิกการจองไม่สำเร็จ:', err);
     showToast('ยกเลิกไม่สำเร็จ: ' + err.message);
   }
+}
+function canDelete(b){
+  return !!currentUser && (currentUser.isAdmin || currentUser.username === b.owner);
 }
 
 /* ---------------- NAV ---------------- */
