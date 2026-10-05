@@ -322,6 +322,15 @@
   .week-nav-label{
     font-family:'Kanit',sans-serif; font-weight:700; font-size:14px; color:var(--ink); white-space:nowrap;
   }
+  .week-all-rooms{display:flex; flex-direction:column; gap:28px;}
+  .week-room-block{background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:18px; box-shadow:var(--shadow);}
+  .week-room-heading{
+    display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; cursor:pointer;
+    margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border);
+  }
+  .week-room-heading:hover .week-room-name{color:var(--brand);}
+  .week-room-name{font-family:'Kanit',sans-serif; font-weight:800; font-size:18px; color:var(--ink); transition:color .12s;}
+  .week-room-meta{font-size:12.5px; color:var(--ink-muted);}
 
   @media (max-width:560px){
     body{padding:10px;}
@@ -679,6 +688,7 @@ function renderHome(){
     <button class="icon-btn" onclick="changeHomeDate(1)" aria-label="วันถัดไป">›</button>
     ${isToday(date) ? '<span class="today-badge">วันนี้</span>' : `<button class="btn ghost small" onclick="goHomeToday()">กลับไปวันนี้</button>`}
     <div class="spacer"></div>
+    <button class="btn ghost small" onclick="openWeekView()">📅 รายสัปดาห์ทุกห้อง</button>
     ${accessBadge()}
   </div>
   ${!syncError ? `<div class="sync-ok">เชื่อมต่อ Google Sheet แล้ว${lastSync ? ' · ซิงค์ล่าสุด ' + pad(lastSync.getHours())+':'+pad(lastSync.getMinutes())+':'+pad(lastSync.getSeconds()) : ''}</div>` : ''}
@@ -742,7 +752,7 @@ function renderRoomView(){
     </div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       ${accessBadge()}
-      <button class="btn ghost" onclick="openWeekView('${room.id}')">📅 ดูรายสัปดาห์</button>
+      <button class="btn ghost" onclick="openWeekView()">📅 ดูรายสัปดาห์ทุกห้อง</button>
       <button class="btn primary" onclick="guardedOpenModal('${room.id}','${date}',null)">+ จองห้องนี้</button>
     </div>
   </div>
@@ -790,7 +800,6 @@ function renderWeekDayCard(room, date){
 }
 
 function renderWeekView(){
-  const room = ROOMS.find(r=>r.id===state.roomId);
   const monday = mondayOf(state.weekDate);
   const days = weekDates(monday);
   const isCurrentWeek = monday === mondayOf(todayISO());
@@ -798,13 +807,11 @@ function renderWeekView(){
   <button class="back-btn" onclick="goHome()">← กลับหน้ารวม</button>
   <div class="detail-header">
     <div>
-      <div class="detail-title">${room.name}</div>
-      <div class="detail-meta">${room.amenities} · จุได้ ${room.capacity} คน · มุมมองรายสัปดาห์</div>
+      <div class="detail-title">ตารางรายสัปดาห์ทุกห้อง</div>
+      <div class="detail-meta">ดูการจองของห้องประชุมทั้งหมดในสัปดาห์เดียวกัน (จันทร์–ศุกร์)</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       ${accessBadge()}
-      <button class="btn ghost" onclick="goToDayFromWeek('${room.id}','${monday}')">📋 ดูรายวัน</button>
-      <button class="btn primary" onclick="guardedOpenModal('${room.id}','${monday}',null)">+ จองห้องนี้</button>
     </div>
   </div>
   <div class="date-nav">
@@ -814,10 +821,20 @@ function renderWeekView(){
     ${isCurrentWeek ? '<span class="today-badge">สัปดาห์นี้</span>' : `<button class="btn ghost small" onclick="goThisWeek()">สัปดาห์นี้</button>`}
     <div class="spacer"></div>
   </div>
-  <div class="week-grid">
-    ${days.map(date=>renderWeekDayCard(room, date)).join('')}
+  <div class="week-all-rooms">
+    ${ROOMS.map(room => `
+      <div class="week-room-block">
+        <div class="week-room-heading" onclick="goToDayFromWeek('${room.id}','${monday}')">
+          <span class="week-room-name">${room.name}</span>
+          <span class="week-room-meta">${room.amenities} · จุได้ ${room.capacity} คน</span>
+        </div>
+        <div class="week-grid">
+          ${days.map(date=>renderWeekDayCard(room, date)).join('')}
+        </div>
+      </div>
+    `).join('')}
   </div>
-  <div class="empty-note">คลิกที่วันไหนก็ได้เพื่อดูตารางเวลาแบบละเอียดของวันนั้น</div>
+  <div class="empty-note">คลิกชื่อห้องเพื่อดูตารางรายวันของห้องนั้น หรือคลิกวันในการ์ดเพื่อดูรายละเอียดวันนั้นโดยตรง</div>
   `;
 }
 
@@ -956,7 +973,7 @@ function setDate(v){ state.selectedDate = v; render(); }
 function changeHomeDate(delta){ state.homeDate = shiftDate(state.homeDate, delta); render(); }
 function setHomeDate(v){ state.homeDate = v; render(); }
 function goHomeToday(){ state.homeDate = todayISO(); render(); }
-function openWeekView(roomId){ state.view='week'; state.roomId=roomId; state.weekDate = state.selectedDate || todayISO(); render(); }
+function openWeekView(){ state.view='week'; state.weekDate = state.selectedDate || state.homeDate || todayISO(); render(); }
 function changeWeek(deltaWeeks){ state.weekDate = shiftDate(state.weekDate, deltaWeeks*7); render(); }
 function goThisWeek(){ state.weekDate = todayISO(); render(); }
 function goToDayFromWeek(roomId, date){ state.view='room'; state.roomId=roomId; state.selectedDate = date; render(); }
